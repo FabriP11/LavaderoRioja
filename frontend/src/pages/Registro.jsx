@@ -23,6 +23,7 @@ function Registro() {
 
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   const manejarCambio = (e) => {
     const { name, value } = e.target;
@@ -36,12 +37,13 @@ function Registro() {
     setMensaje("");
   };
 
-  const manejarRegistro = (e) => {
+  const manejarRegistro = async (e) => {
     e.preventDefault();
 
     setError("");
     setMensaje("");
 
+    // Validar campos obligatorios
     if (
       !datos.nombre.trim() ||
       !datos.apellido.trim() ||
@@ -53,26 +55,78 @@ function Registro() {
       return;
     }
 
-    if (!/^[a-zA-Z0-9_]{3,30}$/.test(datos.nombre_usuario)) {
+    // Validar nombre de usuario
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(datos.nombre_usuario.trim())) {
+      setError("El usuario debe tener entre 3 y 30 caracteres.");
+      return;
+    }
+
+    // Validar contraseña
+    if (
+      datos.contrasena.length < 8 ||
+      new TextEncoder().encode(datos.contrasena).length > 72
+    ) {
       setError(
-        "El usuario debe tener entre 3 y 30 caracteres: letras, números o guiones bajos.",
+        "La contraseña debe tener al menos 8 caracteres y no superar los 72 bytes.",
       );
       return;
     }
 
-    if (datos.contrasena.length < 8) {
-      setError("La contraseña debe tener al menos 8 caracteres.");
-      return;
-    }
-
+    // Confirmar contraseña
     if (datos.contrasena !== datos.confirmarContrasena) {
       setError("Las contraseñas no coinciden.");
       return;
     }
 
-    setMensaje(
-      "Formulario validado. Falta conectar el registro con el servidor.",
-    );
+    setEnviando(true);
+
+    try {
+      const respuesta = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/registro`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            nombre: datos.nombre,
+            apellido: datos.apellido,
+            nombre_usuario: datos.nombre_usuario,
+            correo: datos.correo,
+            telefono: datos.telefono,
+            contrasena: datos.contrasena,
+          }),
+        },
+      );
+
+      const resultado = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(resultado.mensaje || "No se pudo crear la cuenta.");
+      }
+
+      // Registro exitoso
+      setMensaje("¡Cuenta creada correctamente!");
+
+      // Limpiar formulario
+      setDatos({
+        nombre: "",
+        apellido: "",
+        nombre_usuario: "",
+        correo: "",
+        telefono: "",
+        contrasena: "",
+        confirmarContrasena: "",
+      });
+    } catch (err) {
+      setError(
+        err instanceof TypeError
+          ? "No se pudo conectar con el servidor."
+          : err.message,
+      );
+    } finally {
+      setEnviando(false);
+    }
   };
 
   const campos = [
@@ -266,10 +320,12 @@ function Registro() {
 
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-6 py-4 text-sm font-bold text-white transition hover:bg-sky-600"
+              disabled={enviando}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-6 py-4 text-sm font-bold text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <UserRoundPlus size={19} />
-              Validar datos
+
+              {enviando ? "Creando cuenta..." : "Crear cuenta"}
             </button>
 
             <p className="text-center text-xs leading-6 text-slate-400">
