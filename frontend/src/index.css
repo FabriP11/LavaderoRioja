@@ -1,12 +1,10 @@
+@import "tailwindcss";
+
 :root {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 html {
@@ -16,10 +14,10 @@ html {
 body {
   margin: 0;
   min-width: 320px;
+  background: #f8fafc;
 }
 
 button,
-input,
-select {
-  font: inherit;
+a {
+  -webkit-tap-highlight-color: transparent;
 }
