@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 
 import Inicio from "./pages/Inicio";
+import Registro from "./pages/Registro";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Inicio />} />
+          <Route path="/registro" element={<Registro />} />
         </Routes>
       </main>
 

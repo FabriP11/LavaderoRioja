@@ -8,6 +8,7 @@ function Navbar() {
     { nombre: "Inicio", ruta: "#inicio" },
     { nombre: "Servicios", ruta: "#servicios" },
     { nombre: "Cómo funciona", ruta: "#como-funciona" },
+    { nombre: "Registrarse", ruta: "/registro" },
   ];
 
   return (
@@ -42,9 +43,12 @@ function Navbar() {
         </nav>
 
         <div className="hidden md:block">
-          <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-xs font-semibold text-sky-300">
-            Reservas online próximamente
-          </span>
+          <a
+            href="/registro"
+            className="rounded-xl bg-sky-400 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-sky-300"
+          >
+            Crear cuenta
+          </a>
         </div>
 
         <button
