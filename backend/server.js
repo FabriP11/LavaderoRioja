@@ -4,9 +4,15 @@ const express = require('express')
 const cors = require('cors')
 const pool = require('./db')
 const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 
 const app = express()
 const PORT = process.env.PORT || 3001
+
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  throw new Error('Configurá una JWT_SECRET segura en el archivo .env')
+}
 
 // Configuración
 app.use(
@@ -17,6 +23,7 @@ app.use(
 )
 
 app.use(express.json())
+app.use(cookieParser())
 
 // Comprobar funcionamiento del backend
 app.get('/api/estado', (req, res) => {
@@ -215,6 +222,182 @@ app.post('/api/registro', async (req, res) => {
       conexion.release()
     }
   }
+})
+
+// Inicio de sesión
+app.post('/api/login', async (req, res) => {
+  const { identificador, contrasena } = req.body || {}
+
+  if (
+    typeof identificador !== 'string' ||
+    typeof contrasena !== 'string' ||
+    !identificador.trim() ||
+    !contrasena
+  ) {
+    return res.status(400).json({
+      mensaje: 'Ingresá tu usuario o correo y contraseña.'
+    })
+  }
+
+  try {
+    // Buscar usuario por nombre o correo
+    const [usuarios] = await pool.execute(
+      `SELECT
+        u.id_usuario,
+        u.nombre_usuario,
+        u.correo,
+        u.contrasena_hash,
+        u.rol,
+        c.id_cliente,
+        c.nombre,
+        c.apellido
+       FROM usuarios u
+       LEFT JOIN clientes c
+         ON u.id_usuario = c.id_usuario
+       WHERE u.nombre_usuario = ?
+          OR u.correo = ?
+       LIMIT 1`,
+      [identificador.trim(), identificador.trim()]
+    )
+
+    const usuario = usuarios[0]
+
+    if (!usuario) {
+      return res.status(401).json({
+        mensaje: 'Usuario o contraseña incorrectos.'
+      })
+    }
+
+    // Verificar contraseña
+    const contrasenaValida = await bcrypt.compare(
+      contrasena,
+      usuario.contrasena_hash
+    )
+
+    if (!contrasenaValida) {
+      return res.status(401).json({
+        mensaje: 'Usuario o contraseña incorrectos.'
+      })
+    }
+
+    // Generar token de sesión
+    const token = jwt.sign(
+      { id_usuario: usuario.id_usuario },
+      process.env.JWT_SECRET,
+      {
+        algorithm: 'HS256',
+        expiresIn: '7d'
+      }
+    )
+
+    // Guardar sesión en una cookie
+    res.cookie('lavadero_sesion', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    })
+
+    res.json({
+      mensaje: 'Inicio de sesión exitoso.',
+      usuario: {
+        id_usuario: usuario.id_usuario,
+        id_cliente: usuario.id_cliente,
+        nombre_usuario: usuario.nombre_usuario,
+        nombre: usuario.nombre,
+        apellido: usuario.apellido,
+        rol: usuario.rol
+      }
+    })
+  } catch (error) {
+    console.error('Error en login:', error)
+
+    res.status(500).json({
+      mensaje: 'No se pudo iniciar sesión.'
+    })
+  }
+})
+
+// Comprobar sesión activa
+app.get('/api/sesion', async (req, res) => {
+  const token = req.cookies.lavadero_sesion
+
+  if (!token) {
+    return res.status(401).json({
+      mensaje: 'No hay una sesión iniciada.'
+    })
+  }
+
+  try {
+    const datos = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ['HS256']
+    })
+
+    const idUsuario = Number(datos.id_usuario)
+
+    if (!Number.isSafeInteger(idUsuario) || idUsuario <= 0) {
+      return res.status(401).json({
+        mensaje: 'Sesión inválida.'
+      })
+    }
+
+    const [usuarios] = await pool.execute(
+      `SELECT
+        u.id_usuario,
+        u.nombre_usuario,
+        u.rol,
+        c.id_cliente,
+        c.nombre,
+        c.apellido
+       FROM usuarios u
+       LEFT JOIN clientes c
+         ON u.id_usuario = c.id_usuario
+       WHERE u.id_usuario = ?
+       LIMIT 1`,
+      [idUsuario]
+    )
+
+    if (usuarios.length === 0) {
+      return res.status(401).json({
+        mensaje: 'Usuario no encontrado.'
+      })
+    }
+
+    res.json({
+      usuario: usuarios[0]
+    })
+  } catch (error) {
+    if (
+      error.name === 'JsonWebTokenError' ||
+      error.name === 'TokenExpiredError' ||
+      error.name === 'NotBeforeError'
+    ) {
+      return res.status(401).json({
+        mensaje: 'Sesión inválida o expirada.'
+      })
+    }
+
+    console.error('Error al consultar sesión:', error)
+
+    res.status(500).json({
+      mensaje: 'No se pudo consultar la sesión.'
+    })
+  }
+})
+
+// Cerrar sesión
+app.post('/api/logout', (req, res) => {
+  res.clearCookie('lavadero_sesion', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/'
+  })
+
+  res.json({
+    mensaje: 'Sesión cerrada correctamente.'
+  })
 })
 
 // Iniciar servidor
