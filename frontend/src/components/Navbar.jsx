@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 
-import {
-  Droplets,
-  Menu,
-  X,
-  UserRound,
-  ChevronDown,
-  LogOut,
-} from "lucide-react";
+import { Droplets, UserRound, ChevronDown, LogOut } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -17,7 +10,6 @@ function Navbar() {
 
   const { usuario, comprobandoSesion, cerrarSesion } = useAuth();
 
-  const [menuAbierto, setMenuAbierto] = useState(false);
   const [menuUsuario, setMenuUsuario] = useState(false);
   const [errorSalida, setErrorSalida] = useState("");
 
@@ -33,7 +25,6 @@ function Navbar() {
     try {
       await cerrarSesion();
 
-      setMenuAbierto(false);
       setMenuUsuario(false);
 
       navigate("/", { replace: true });
@@ -64,7 +55,7 @@ function Navbar() {
         </Link>
 
         {/* NAVEGACIÓN DESKTOP */}
-        <nav className="hidden items-center gap-8 text-sm font-medium text-slate-300 md:flex">
+        <nav className="flex items-center gap-8 text-sm font-medium text-slate-300">
           {enlaces.map((enlace) => (
             <a
               key={enlace.ruta}
@@ -77,7 +68,7 @@ function Navbar() {
         </nav>
 
         {/* SESIÓN DESKTOP */}
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="flex items-center gap-3">
           {!comprobandoSesion && !usuario && (
             <>
               <Link
@@ -128,6 +119,15 @@ function Navbar() {
                     </p>
                   </div>
 
+                  <Link
+                    to="/mi-perfil"
+                    onClick={() => setMenuUsuario(false)}
+                    className="mt-2 flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  >
+                    <UserRound size={18} />
+                    Mi perfil
+                  </Link>
+
                   <button
                     type="button"
                     onClick={manejarLogout}
@@ -141,81 +141,7 @@ function Navbar() {
             </div>
           )}
         </div>
-
-        {/* BOTÓN MÓVIL */}
-        <button
-          type="button"
-          onClick={() => setMenuAbierto(!menuAbierto)}
-          aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
-          aria-expanded={menuAbierto}
-          className="rounded-xl p-2 md:hidden"
-        >
-          {menuAbierto ? <X /> : <Menu />}
-        </button>
       </div>
-
-      {/* MENÚ MÓVIL */}
-      {menuAbierto && (
-        <nav className="flex flex-col gap-4 border-t border-white/10 px-6 py-5 text-sm md:hidden">
-          {enlaces.map((enlace) => (
-            <a
-              key={enlace.ruta}
-              href={enlace.ruta}
-              onClick={() => setMenuAbierto(false)}
-              className="text-slate-200"
-            >
-              {enlace.nombre}
-            </a>
-          ))}
-
-          {!comprobandoSesion && !usuario && (
-            <>
-              <Link
-                to="/login"
-                onClick={() => setMenuAbierto(false)}
-                className="text-sky-400"
-              >
-                Iniciar sesión
-              </Link>
-
-              <Link
-                to="/registro"
-                onClick={() => setMenuAbierto(false)}
-                className="text-sky-400"
-              >
-                Registrarse
-              </Link>
-            </>
-          )}
-
-          {!comprobandoSesion && usuario && (
-            <>
-              <div className="border-t border-white/10 pt-4">
-                <div className="flex items-center gap-2">
-                  <UserRound size={18} className="text-sky-400" />
-
-                  <span className="font-semibold">
-                    {usuario.nombre_usuario}
-                  </span>
-                </div>
-
-                <p className="mt-1 text-xs capitalize text-slate-400">
-                  {usuario.rol}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={manejarLogout}
-                className="flex items-center gap-2 text-left text-red-400"
-              >
-                <LogOut size={18} />
-                Cerrar sesión
-              </button>
-            </>
-          )}
-        </nav>
-      )}
 
       {errorSalida && (
         <p role="alert" className="px-6 pb-3 text-center text-sm text-red-300">
