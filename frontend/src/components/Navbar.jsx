@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 
-import { Droplets, UserRound, ChevronDown, LogOut } from "lucide-react";
+import {
+  Droplets,
+  UserRound,
+  ChevronDown,
+  LogOut,
+  CarFront,
+} from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 
@@ -126,6 +132,15 @@ function Navbar() {
                   >
                     <UserRound size={18} />
                     Mi perfil
+                  </Link>
+
+                  <Link
+                    to="/mis-vehiculos"
+                    onClick={() => setMenuUsuario(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  >
+                    <CarFront size={18} />
+                    Mis vehículos
                   </Link>
 
                   <button
