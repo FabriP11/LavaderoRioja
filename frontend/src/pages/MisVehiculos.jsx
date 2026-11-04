@@ -11,6 +11,7 @@ import {
   X,
   Pencil,
   Save,
+  Trash2,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -46,6 +47,9 @@ function MisVehiculos() {
 
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [errorEdicion, setErrorEdicion] = useState("");
+
+  const [eliminandoId, setEliminandoId] = useState(null);
+  const [errorEliminar, setErrorEliminar] = useState("");
 
   useEffect(() => {
     if (comprobandoSesion || !usuario) {
@@ -222,6 +226,51 @@ function MisVehiculos() {
     }
   };
 
+  const eliminarVehiculo = async (vehiculo) => {
+    const confirmar = window.confirm(
+      `¿Estás seguro de eliminar el vehículo ${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.patente})?`,
+    );
+
+    if (!confirmar) return;
+
+    setErrorEliminar("");
+    setMensajeExito("");
+    setEliminandoId(vehiculo.id_vehiculo);
+
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/vehiculos/${vehiculo.id_vehiculo}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
+
+      const resultado = await respuesta.json();
+
+      if (!respuesta.ok) {
+        throw new Error(
+          resultado.mensaje || "No se pudo eliminar el vehículo.",
+        );
+      }
+
+      // Actualizar la lista sin recargar la página
+      setVehiculos((anteriores) =>
+        anteriores.filter((item) => item.id_vehiculo !== vehiculo.id_vehiculo),
+      );
+
+      setMensajeExito("¡Vehículo eliminado correctamente!");
+    } catch (error) {
+      setErrorEliminar(
+        error instanceof TypeError
+          ? "No se pudo conectar con el servidor."
+          : error.message,
+      );
+    } finally {
+      setEliminandoId(null);
+    }
+  };
+
   if (comprobandoSesion) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center gap-3 text-slate-500">
@@ -304,6 +353,17 @@ function MisVehiculos() {
             </button>
           </div>
         </div>
+
+        {/* ERROR AL ELIMINAR */}
+        {errorEliminar && (
+          <div
+            role="alert"
+            className="mb-8 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-sm font-semibold text-red-700"
+          >
+            <CircleAlert size={19} />
+            {errorEliminar}
+          </div>
+        )}
 
         {/* MENSAJE DE ÉXITO */}
         {mensajeExito && (
@@ -579,6 +639,22 @@ function MisVehiculos() {
                     >
                       <Pencil size={17} />
                       Editar vehículo
+                    </button>
+                  )}
+
+                  {/* ELIMINAR VEHÍCULO */}
+                  {vehiculoEnEdicion !== vehiculo.id_vehiculo && (
+                    <button
+                      type="button"
+                      onClick={() => eliminarVehiculo(vehiculo)}
+                      disabled={eliminandoId === vehiculo.id_vehiculo}
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Trash2 size={17} />
+
+                      {eliminandoId === vehiculo.id_vehiculo
+                        ? "Eliminando..."
+                        : "Eliminar vehículo"}
                     </button>
                   )}
 
