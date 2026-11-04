@@ -1254,6 +1254,140 @@ app.post('/api/turnos', verificarCliente, async (req, res) => {
   }
 })
 
+// Consultar turnos del cliente
+app.get('/api/mis-turnos', verificarCliente, async (req, res) => {
+  try {
+    const [turnos] = await pool.execute(
+      `SELECT
+        t.id_turno,
+        t.id_vehiculo,
+        v.patente,
+        v.marca,
+        v.modelo,
+        s.nombre AS servicio,
+        p.nombre AS puesto,
+        DATE_FORMAT(
+          t.fecha_hora_inicio,
+          '%Y-%m-%d'
+        ) AS fecha,
+        DATE_FORMAT(
+          t.fecha_hora_inicio,
+          '%H:%i'
+        ) AS hora_inicio,
+        DATE_FORMAT(
+          t.fecha_hora_fin,
+          '%H:%i'
+        ) AS hora_fin,
+        t.precio_aplicado,
+        t.estado,
+        t.origen
+       FROM turnos t
+       INNER JOIN vehiculos v
+         ON t.id_vehiculo = v.id_vehiculo
+       INNER JOIN servicios s
+         ON t.id_servicio = s.id_servicio
+       INNER JOIN puestos_lavado p
+         ON t.id_puesto = p.id_puesto
+       WHERE t.id_cliente = ?
+       ORDER BY t.fecha_hora_inicio DESC, t.id_turno DESC`,
+      [req.idCliente]
+    )
+
+    return res.json({ turnos })
+  } catch (error) {
+    console.error('Error al consultar mis turnos:', error)
+
+    return res.status(500).json({
+      mensaje: 'No se pudieron obtener tus turnos.'
+    })
+  }
+})
+
+// Cancelar un turno del cliente
+app.patch(
+  '/api/mis-turnos/:id/cancelar',
+  verificarCliente,
+  async (req, res) => {
+    const idTurno = Number(req.params.id)
+
+    if (!Number.isSafeInteger(idTurno) || idTurno <= 0) {
+      return res.status(400).json({
+        mensaje: 'El identificador del turno es inválido.'
+      })
+    }
+
+    // Fecha y hora actual de La Rioja
+    const partes = Object.fromEntries(
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Argentina/La_Rioja',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23'
+      })
+        .formatToParts(new Date())
+        .map(parte => [parte.type, parte.value])
+    )
+
+    const ahora =
+      `${partes.year}-${partes.month}-${partes.day} ` +
+      `${partes.hour}:${partes.minute}:${partes.second}`
+
+    try {
+      // Cancelación protegida en una única operación
+      const [resultado] = await pool.execute(
+        `UPDATE turnos
+         SET estado = 'cancelado',
+             fecha_cancelacion = ?
+         WHERE id_turno = ?
+           AND id_cliente = ?
+           AND estado = 'reservado'
+           AND fecha_hora_inicio > ?`,
+        [ahora, idTurno, req.idCliente, ahora]
+      )
+
+      if (resultado.affectedRows === 0) {
+        const [turnos] = await pool.execute(
+          `SELECT estado
+           FROM turnos
+           WHERE id_turno = ?
+             AND id_cliente = ?
+           LIMIT 1`,
+          [idTurno, req.idCliente]
+        )
+
+        if (turnos.length === 0) {
+          return res.status(404).json({
+            mensaje: 'No se encontró el turno.'
+          })
+        }
+
+        return res.status(409).json({
+          mensaje:
+            turnos[0].estado !== 'reservado'
+              ? 'Solo podés cancelar turnos en estado reservado.'
+              : 'No podés cancelar un turno que ya comenzó.'
+        })
+      }
+
+      return res.json({
+        mensaje: 'Turno cancelado correctamente.',
+        id_turno: idTurno,
+        estado: 'cancelado'
+      })
+    } catch (error) {
+      console.error('Error al cancelar turno:', error)
+
+      return res.status(500).json({
+        mensaje: 'No se pudo cancelar el turno.'
+      })
+    }
+  }
+)
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor funcionando en http://localhost:${PORT}`)
