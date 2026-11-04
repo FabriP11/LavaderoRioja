@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import {
   Droplets,
   CarFront,
@@ -8,8 +10,6 @@ import {
   CalendarDays,
   ShieldCheck,
   MapPin,
-  Menu,
-  X,
   LoaderCircle,
   CheckCircle2,
 } from "lucide-react";
@@ -18,7 +18,6 @@ function App() {
   const [servicios, setServicios] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
-  const [menuAbierto, setMenuAbierto] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -68,72 +67,7 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* NAVEGACIÓN */}
-      <header className="relative z-20 bg-[#081727] text-white">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
-          <a href="#inicio" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400 text-slate-950">
-              <Droplets size={25} strokeWidth={2.5} />
-            </div>
-
-            <div className="flex flex-col leading-tight">
-              <span className="text-xl font-extrabold tracking-tight">
-                Lavadero<span className="text-sky-400">Rioja</span>
-              </span>
-              <span className="text-[10px] font-semibold tracking-[0.23em] text-slate-400">
-                CAR WASH & DETAILING
-              </span>
-            </div>
-          </a>
-
-          <nav className="hidden items-center gap-9 text-sm font-medium text-slate-300 md:flex">
-            <a href="#inicio" className="transition hover:text-sky-400">
-              Inicio
-            </a>
-            <a href="#servicios" className="transition hover:text-sky-400">
-              Servicios
-            </a>
-            <a href="#como-funciona" className="transition hover:text-sky-400">
-              Cómo funciona
-            </a>
-          </nav>
-
-          <div className="hidden md:block">
-            <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-xs font-semibold text-sky-300">
-              Reservas online próximamente
-            </span>
-          </div>
-
-          <button
-            type="button"
-            aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
-            aria-expanded={menuAbierto}
-            onClick={() => setMenuAbierto(!menuAbierto)}
-            className="rounded-xl p-2 text-white md:hidden"
-          >
-            {menuAbierto ? <X /> : <Menu />}
-          </button>
-        </div>
-
-        {menuAbierto && (
-          <nav className="flex flex-col gap-4 border-t border-white/10 px-6 py-5 text-sm md:hidden">
-            {[
-              ["Inicio", "#inicio"],
-              ["Servicios", "#servicios"],
-              ["Cómo funciona", "#como-funciona"],
-            ].map(([nombre, ruta]) => (
-              <a
-                key={ruta}
-                href={ruta}
-                onClick={() => setMenuAbierto(false)}
-                className="text-slate-200"
-              >
-                {nombre}
-              </a>
-            ))}
-          </nav>
-        )}
-      </header>
-
+      <Navbar />
       <main>
         {/* HERO */}
         <section
@@ -399,24 +333,7 @@ function App() {
       </main>
 
       {/* FOOTER */}
-      <footer className="bg-[#081727] py-10 text-white">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 px-6 text-center md:flex-row lg:px-8">
-          <div className="flex items-center gap-2">
-            <Droplets className="text-sky-400" />
-            <span className="font-bold">
-              Lavadero<span className="text-sky-400">Rioja</span>
-            </span>
-          </div>
-
-          <p className="text-sm text-slate-400">
-            La Rioja, Argentina · Proyecto académico
-          </p>
-
-          <p className="text-sm text-slate-500">
-            © {new Date().getFullYear()} Lavadero Rioja
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
