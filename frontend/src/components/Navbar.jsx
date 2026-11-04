@@ -7,6 +7,8 @@ import {
   ChevronDown,
   LogOut,
   CarFront,
+  CalendarDays,
+  ClipboardList,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -141,6 +143,24 @@ function Navbar() {
                   >
                     <CarFront size={18} />
                     Mis vehículos
+                  </Link>
+
+                  <Link
+                    to="/reservar-turno"
+                    onClick={() => setMenuUsuario(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  >
+                    <CalendarDays size={18} />
+                    Reservar turno
+                  </Link>
+
+                  <Link
+                    to="/mis-turnos"
+                    onClick={() => setMenuUsuario(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  >
+                    <ClipboardList size={18} />
+                    Mis turnos
                   </Link>
 
                   <button

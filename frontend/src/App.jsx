@@ -8,6 +8,8 @@ import Registro from "./pages/Registro";
 import Login from "./pages/Login";
 import MiPerfil from "./pages/MiPerfil";
 import MisVehiculos from "./pages/MisVehiculos";
+import ReservarTurno from "./pages/ReservarTurno";
+import MisTurnos from "./pages/MisTurnos";
 
 function App() {
   return (
@@ -21,6 +23,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/mi-perfil" element={<MiPerfil />} />
           <Route path="/mis-vehiculos" element={<MisVehiculos />} />
+          <Route path="/reservar-turno" element={<ReservarTurno />} />
+          <Route path="/mis-turnos" element={<MisTurnos />} />
         </Routes>
       </main>
 
