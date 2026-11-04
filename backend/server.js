@@ -400,6 +400,275 @@ app.post('/api/logout', (req, res) => {
   })
 })
 
+// Middleware para verificar que el usuario tenga rol de cliente
+async function verificarCliente (req, res, next) {
+  const token = req.cookies?.lavadero_sesion
+
+  if (!token) {
+    return res.status(401).json({
+      mensaje: 'Debés iniciar sesión.'
+    })
+  }
+
+  try {
+    const datos = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ['HS256']
+    })
+
+    const [clientes] = await pool.execute(
+      `SELECT id_cliente
+       FROM clientes
+       WHERE id_usuario = ?
+       LIMIT 1`,
+      [datos.id_usuario]
+    )
+
+    if (clientes.length === 0) {
+      return res.status(403).json({
+        mensaje: 'Esta operación requiere una cuenta de cliente.'
+      })
+    }
+
+    req.idCliente = clientes[0].id_cliente
+    next()
+  } catch (error) {
+    if (
+      error.name === 'JsonWebTokenError' ||
+      error.name === 'TokenExpiredError' ||
+      error.name === 'NotBeforeError'
+    ) {
+      return res.status(401).json({
+        mensaje: 'Sesión inválida o expirada.'
+      })
+    }
+
+    console.error('Error de autenticación:', error)
+
+    return res.status(500).json({
+      mensaje: 'No se pudo verificar la sesión.'
+    })
+  }
+}
+
+// Obtener vehículos del cliente
+app.get('/api/vehiculos', verificarCliente, async (req, res) => {
+  try {
+    const [vehiculos] = await pool.execute(
+      `SELECT *
+       FROM vehiculos
+       WHERE id_cliente = ?
+       ORDER BY id_vehiculo DESC`,
+      [req.idCliente]
+    )
+
+    res.json({ vehiculos })
+  } catch (error) {
+    console.error('Error al consultar vehículos:', error)
+
+    res.status(500).json({
+      mensaje: 'No se pudieron obtener los vehículos.'
+    })
+  }
+})
+
+// Registrar un nuevo vehículo para el cliente
+app.post('/api/vehiculos', verificarCliente, async (req, res) => {
+  const { patente, marca, modelo } = req.body || {}
+
+  // Validar tipos de datos
+  if (
+    typeof patente !== 'string' ||
+    typeof marca !== 'string' ||
+    typeof modelo !== 'string'
+  ) {
+    return res.status(400).json({
+      mensaje: 'Completá todos los datos del vehículo.'
+    })
+  }
+
+  // Limpiar los datos
+  const patenteLimpia = patente.trim().toUpperCase().replace(/[\s-]/g, '')
+
+  const marcaLimpia = marca.trim()
+  const modeloLimpio = modelo.trim()
+
+  if (!marcaLimpia || !modeloLimpio) {
+    return res.status(400).json({
+      mensaje: 'La marca y el modelo son obligatorios.'
+    })
+  }
+
+  if (!/^[A-Z0-9]{6,10}$/.test(patenteLimpia)) {
+    return res.status(400).json({
+      mensaje: 'Ingresá una patente válida, sin símbolos.'
+    })
+  }
+
+  if (marcaLimpia.length > 50 || modeloLimpio.length > 50) {
+    return res.status(400).json({
+      mensaje: 'La marca y el modelo son demasiado largos.'
+    })
+  }
+
+  try {
+    // Comprobar si ya está registrada
+    const [existentes] = await pool.execute(
+      'SELECT id_vehiculo FROM vehiculos WHERE patente = ? LIMIT 1',
+      [patenteLimpia]
+    )
+
+    if (existentes.length > 0) {
+      return res.status(409).json({
+        mensaje: 'Esta patente ya está registrada.'
+      })
+    }
+
+    // Crear vehículo asociado al cliente autenticado
+    const [resultado] = await pool.execute(
+      `INSERT INTO vehiculos
+       (id_cliente, patente, marca, modelo)
+       VALUES (?, ?, ?, ?)`,
+      [req.idCliente, patenteLimpia, marcaLimpia, modeloLimpio]
+    )
+
+    // Recuperar el vehículo creado
+    const [vehiculos] = await pool.execute(
+      `SELECT *
+       FROM vehiculos
+       WHERE id_vehiculo = ?
+         AND id_cliente = ?`,
+      [resultado.insertId, req.idCliente]
+    )
+
+    return res.status(201).json({
+      mensaje: 'Vehículo registrado correctamente.',
+      vehiculo: vehiculos[0]
+    })
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        mensaje: 'Esta patente ya está registrada.'
+      })
+    }
+
+    console.error('Error al registrar vehículo:', error)
+
+    return res.status(500).json({
+      mensaje: 'No se pudo registrar el vehículo.'
+    })
+  }
+})
+
+// Editar un vehículo del cliente
+app.put('/api/vehiculos/:id', verificarCliente, async (req, res) => {
+  const idVehiculo = Number(req.params.id)
+  const { patente, marca, modelo } = req.body || {}
+
+  // Validar el identificador
+  if (!Number.isSafeInteger(idVehiculo) || idVehiculo <= 0) {
+    return res.status(400).json({
+      mensaje: 'El identificador del vehículo es inválido.'
+    })
+  }
+
+  // Validar los datos recibidos
+  if (
+    typeof patente !== 'string' ||
+    typeof marca !== 'string' ||
+    typeof modelo !== 'string'
+  ) {
+    return res.status(400).json({
+      mensaje: 'Completá todos los datos del vehículo.'
+    })
+  }
+
+  const patenteLimpia = patente.trim().toUpperCase().replace(/[\s-]/g, '')
+
+  const marcaLimpia = marca.trim()
+  const modeloLimpio = modelo.trim()
+
+  if (
+    !/^[A-Z0-9]{6,10}$/.test(patenteLimpia) ||
+    !marcaLimpia ||
+    !modeloLimpio ||
+    marcaLimpia.length > 50 ||
+    modeloLimpio.length > 50
+  ) {
+    return res.status(400).json({
+      mensaje: 'Verificá los datos del vehículo.'
+    })
+  }
+
+  try {
+    // Comprobar que el vehículo pertenece al cliente
+    const [existentes] = await pool.execute(
+      `SELECT id_vehiculo
+       FROM vehiculos
+       WHERE id_vehiculo = ?
+         AND id_cliente = ?
+       LIMIT 1`,
+      [idVehiculo, req.idCliente]
+    )
+
+    if (existentes.length === 0) {
+      return res.status(404).json({
+        mensaje: 'No se encontró el vehículo.'
+      })
+    }
+
+    // Evitar que la patente esté registrada en otro vehículo
+    const [patentes] = await pool.execute(
+      `SELECT id_vehiculo
+       FROM vehiculos
+       WHERE patente = ?
+         AND id_vehiculo <> ?
+       LIMIT 1`,
+      [patenteLimpia, idVehiculo]
+    )
+
+    if (patentes.length > 0) {
+      return res.status(409).json({
+        mensaje: 'Esta patente ya está registrada.'
+      })
+    }
+
+    // Actualizar únicamente el vehículo del cliente
+    await pool.execute(
+      `UPDATE vehiculos
+       SET patente = ?, marca = ?, modelo = ?
+       WHERE id_vehiculo = ?
+         AND id_cliente = ?`,
+      [patenteLimpia, marcaLimpia, modeloLimpio, idVehiculo, req.idCliente]
+    )
+
+    // Recuperar los datos actualizados
+    const [vehiculos] = await pool.execute(
+      `SELECT *
+       FROM vehiculos
+       WHERE id_vehiculo = ?
+         AND id_cliente = ?`,
+      [idVehiculo, req.idCliente]
+    )
+
+    return res.json({
+      mensaje: 'Vehículo actualizado correctamente.',
+      vehiculo: vehiculos[0]
+    })
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        mensaje: 'Esta patente ya está registrada.'
+      })
+    }
+
+    console.error('Error al editar vehículo:', error)
+
+    return res.status(500).json({
+      mensaje: 'No se pudo actualizar el vehículo.'
+    })
+  }
+})
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor funcionando en http://localhost:${PORT}`)
