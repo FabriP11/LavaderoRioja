@@ -6,6 +6,7 @@ import Footer from "./components/Footer";
 import Inicio from "./pages/Inicio";
 import Registro from "./pages/Registro";
 import Login from "./pages/Login";
+import MiPerfil from "./pages/MiPerfil";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/" element={<Inicio />} />
           <Route path="/registro" element={<Registro />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/mi-perfil" element={<MiPerfil />} />
         </Routes>
       </main>
 
