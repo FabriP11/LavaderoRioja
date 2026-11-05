@@ -9,6 +9,7 @@ import {
   CarFront,
   CalendarDays,
   ClipboardList,
+  LayoutDashboard,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -162,6 +163,18 @@ function Navbar() {
                     <ClipboardList size={18} />
                     Mis turnos
                   </Link>
+
+                  {/* PANEL ADMINISTRATIVO */}
+                  {usuario.rol === "administrador" && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setMenuUsuario(false)}
+                      className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-bold text-sky-700 transition hover:bg-sky-50"
+                    >
+                      <LayoutDashboard size={18} />
+                      Panel de administración
+                    </Link>
+                  )}
 
                   <button
                     type="button"
