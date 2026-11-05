@@ -450,6 +450,123 @@ async function verificarCliente (req, res, next) {
   }
 }
 
+// Middleware para verificar que el usuario tenga rol de administrador
+async function verificarAdministrador (req, res, next) {
+  const token = req.cookies?.lavadero_sesion
+
+  if (!token) {
+    return res.status(401).json({
+      mensaje: 'Debés iniciar sesión.'
+    })
+  }
+
+  try {
+    // Verificar la cookie de autenticación
+    const datos = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ['HS256']
+    })
+
+    const idUsuario = Number(datos.id_usuario)
+
+    if (!Number.isSafeInteger(idUsuario) || idUsuario <= 0) {
+      return res.status(401).json({
+        mensaje: 'Sesión inválida.'
+      })
+    }
+
+    // Consultar el rol actual desde MySQL
+    const [usuarios] = await pool.execute(
+      `SELECT id_usuario, nombre_usuario, rol
+       FROM usuarios
+       WHERE id_usuario = ?
+       LIMIT 1`,
+      [idUsuario]
+    )
+
+    if (usuarios.length === 0) {
+      return res.status(401).json({
+        mensaje: 'Usuario no encontrado.'
+      })
+    }
+
+    if (usuarios[0].rol !== 'administrador') {
+      return res.status(403).json({
+        mensaje: 'No tenés permisos de administrador.'
+      })
+    }
+
+    req.admin = usuarios[0]
+
+    next()
+  } catch (error) {
+    if (
+      error.name === 'JsonWebTokenError' ||
+      error.name === 'TokenExpiredError' ||
+      error.name === 'NotBeforeError'
+    ) {
+      return res.status(401).json({
+        mensaje: 'Sesión inválida o expirada.'
+      })
+    }
+
+    console.error('Error de autenticación administrativa:', error)
+
+    return res.status(500).json({
+      mensaje: 'No se pudo verificar el acceso.'
+    })
+  }
+}
+
+// Consultar todos los turnos (solo para administradores)
+app.get('/api/admin/turnos', verificarAdministrador, async (req, res) => {
+  try {
+    const [turnos] = await pool.execute(
+      `SELECT
+          t.id_turno,
+          c.nombre AS cliente_nombre,
+          c.apellido AS cliente_apellido,
+          v.patente,
+          v.marca,
+          v.modelo,
+          s.nombre AS servicio,
+          p.nombre AS puesto,
+          DATE_FORMAT(
+            t.fecha_hora_inicio,
+            '%Y-%m-%d'
+          ) AS fecha,
+          DATE_FORMAT(
+            t.fecha_hora_inicio,
+            '%H:%i'
+          ) AS hora_inicio,
+          DATE_FORMAT(
+            t.fecha_hora_fin,
+            '%H:%i'
+          ) AS hora_fin,
+          t.precio_aplicado,
+          t.estado,
+          t.origen
+         FROM turnos t
+         INNER JOIN clientes c
+           ON t.id_cliente = c.id_cliente
+         INNER JOIN vehiculos v
+           ON t.id_vehiculo = v.id_vehiculo
+         INNER JOIN servicios s
+           ON t.id_servicio = s.id_servicio
+         INNER JOIN puestos_lavado p
+           ON t.id_puesto = p.id_puesto
+         ORDER BY t.fecha_hora_inicio DESC, t.id_turno DESC`
+    )
+
+    return res.json({ turnos })
+  } catch (error) {
+    console.error('Error al consultar turnos:', error)
+
+    return res.status(500).json({
+      mensaje: 'No se pudieron obtener las reservas.'
+    })
+  }
+})
+
 // Obtener vehículos del cliente
 app.get('/api/vehiculos', verificarCliente, async (req, res) => {
   try {
@@ -1387,6 +1504,206 @@ app.patch(
     }
   }
 )
+
+// Cambiar el estado de un turno (solo para administradores)
+app.patch(
+  '/api/admin/turnos/:id/estado',
+  verificarAdministrador,
+  async (req, res) => {
+    const idTurno = Number(req.params.id)
+    const { estado } = req.body || {}
+
+    if (!Number.isSafeInteger(idTurno) || idTurno <= 0) {
+      return res.status(400).json({
+        mensaje: 'El identificador del turno es inválido.'
+      })
+    }
+
+    // Cada estado exige un estado anterior específico
+    const estadosAnteriores = {
+      en_proceso: 'reservado',
+      finalizado: 'en_proceso',
+      entregado: 'finalizado'
+    }
+
+    if (
+      typeof estado !== 'string' ||
+      !Object.hasOwn(estadosAnteriores, estado)
+    ) {
+      return res.status(400).json({
+        mensaje: 'El estado solicitado no es válido.'
+      })
+    }
+
+    try {
+      // Consultar el estado actual del turno
+      const [turnos] = await pool.execute(
+        `SELECT id_turno, estado
+         FROM turnos
+         WHERE id_turno = ?
+         LIMIT 1`,
+        [idTurno]
+      )
+
+      if (turnos.length === 0) {
+        return res.status(404).json({
+          mensaje: 'No se encontró el turno.'
+        })
+      }
+
+      const estadoActual = turnos[0].estado
+      const estadoNecesario = estadosAnteriores[estado]
+
+      if (estadoActual !== estadoNecesario) {
+        return res.status(409).json({
+          mensaje:
+            'No se permite pasar de ' + estadoActual + ' a ' + estado + '.'
+        })
+      }
+
+      // Actualizar solamente si el estado sigue siendo el esperado
+      const [resultado] = await pool.execute(
+        `UPDATE turnos
+         SET estado = ?
+         WHERE id_turno = ?
+           AND estado = ?`,
+        [estado, idTurno, estadoNecesario]
+      )
+
+      if (resultado.affectedRows === 0) {
+        return res.status(409).json({
+          mensaje: 'El turno fue modificado. Actualizá las reservas.'
+        })
+      }
+
+      return res.json({
+        mensaje: 'Estado actualizado correctamente.',
+        turno: {
+          id_turno: idTurno,
+          estado
+        }
+      })
+    } catch (error) {
+      console.error('Error al actualizar estado:', error)
+
+      return res.status(500).json({
+        mensaje: 'No se pudo actualizar el estado del turno.'
+      })
+    }
+  }
+)
+
+// Consultar agenda completa de un día (solo para administradores)
+app.get('/api/admin/agenda', verificarAdministrador, async (req, res) => {
+  const { fecha } = req.query
+
+  // Validar la fecha solicitada
+  const fechaObjeto =
+    typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fecha)
+      ? new Date(`${fecha}T00:00:00Z`)
+      : null
+
+  if (
+    !fechaObjeto ||
+    Number.isNaN(fechaObjeto.getTime()) ||
+    fechaObjeto.toISOString().slice(0, 10) !== fecha
+  ) {
+    return res.status(400).json({
+      mensaje: 'Ingresá una fecha válida (AAAA-MM-DD).'
+    })
+  }
+
+  try {
+    // 1. Obtener los puestos del lavadero
+    const [puestos] = await pool.execute(
+      `SELECT id_puesto, nombre, activo
+         FROM puestos_lavado
+         ORDER BY id_puesto`
+    )
+
+    // 2. Obtener las reservas del día
+    const [turnos] = await pool.execute(
+      `SELECT
+           t.id_turno,
+           t.id_puesto,
+           c.nombre AS cliente_nombre,
+           c.apellido AS cliente_apellido,
+           v.patente,
+           v.marca,
+           v.modelo,
+           s.nombre AS servicio,
+           DATE_FORMAT(
+             t.fecha_hora_inicio,
+             '%Y-%m-%d %H:%i:%s'
+           ) AS inicio,
+           DATE_FORMAT(
+             t.fecha_hora_fin,
+             '%Y-%m-%d %H:%i:%s'
+           ) AS fin,
+           t.estado
+         FROM turnos t
+         INNER JOIN clientes c
+           ON t.id_cliente = c.id_cliente
+         INNER JOIN vehiculos v
+           ON t.id_vehiculo = v.id_vehiculo
+         INNER JOIN servicios s
+           ON t.id_servicio = s.id_servicio
+         WHERE t.fecha_hora_inicio <
+                 DATE_ADD(?, INTERVAL 1 DAY)
+           AND t.fecha_hora_fin > ?
+         ORDER BY t.fecha_hora_inicio`,
+      [fecha, fecha]
+    )
+
+    // 3. Obtener los bloqueos de agenda
+    const [bloqueos] = await pool.execute(
+      `SELECT
+           id_bloqueo,
+           id_puesto,
+           DATE_FORMAT(
+             fecha_hora_inicio,
+             '%Y-%m-%d %H:%i:%s'
+           ) AS inicio,
+           DATE_FORMAT(
+             fecha_hora_fin,
+             '%Y-%m-%d %H:%i:%s'
+           ) AS fin,
+           motivo
+         FROM bloqueos_agenda
+         WHERE fecha_hora_inicio <
+                 DATE_ADD(?, INTERVAL 1 DAY)
+           AND fecha_hora_fin > ?
+         ORDER BY fecha_hora_inicio`,
+      [fecha, fecha]
+    )
+
+    // 4. Organizar la información por puesto
+    const agenda = puestos.map(puesto => ({
+      ...puesto,
+
+      turnos: turnos.filter(
+        turno => Number(turno.id_puesto) === Number(puesto.id_puesto)
+      ),
+
+      bloqueos: bloqueos.filter(
+        bloqueo =>
+          bloqueo.id_puesto === null ||
+          Number(bloqueo.id_puesto) === Number(puesto.id_puesto)
+      )
+    }))
+
+    return res.json({
+      fecha,
+      puestos: agenda
+    })
+  } catch (error) {
+    console.error('Error al consultar agenda:', error)
+
+    return res.status(500).json({
+      mensaje: 'No se pudo consultar la agenda.'
+    })
+  }
+})
 
 // Iniciar servidor
 app.listen(PORT, () => {
