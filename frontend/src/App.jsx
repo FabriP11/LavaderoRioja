@@ -10,6 +10,7 @@ import MiPerfil from "./pages/MiPerfil";
 import MisVehiculos from "./pages/MisVehiculos";
 import ReservarTurno from "./pages/ReservarTurno";
 import MisTurnos from "./pages/MisTurnos";
+import PanelAdmin from "./pages/PanelAdmin";
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/mis-vehiculos" element={<MisVehiculos />} />
           <Route path="/reservar-turno" element={<ReservarTurno />} />
           <Route path="/mis-turnos" element={<MisTurnos />} />
+          <Route path="/admin" element={<PanelAdmin />} />
         </Routes>
       </main>
 
