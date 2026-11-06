@@ -1705,6 +1705,409 @@ app.get('/api/admin/agenda', verificarAdministrador, async (req, res) => {
   }
 })
 
+// Registrar un bloqueo de agenda (solo para administradores)
+app.post('/api/admin/bloqueos', verificarAdministrador, async (req, res) => {
+  const { id_puesto, fecha, hora_inicio, hora_fin, motivo } = req.body || {}
+
+  // NULL significa cierre general de ambos puestos
+  const idPuesto = id_puesto === null ? null : Number(id_puesto)
+
+  if (
+    id_puesto === undefined ||
+    (idPuesto !== null && (!Number.isSafeInteger(idPuesto) || idPuesto <= 0))
+  ) {
+    return res.status(400).json({
+      mensaje: 'Seleccioná un puesto válido.'
+    })
+  }
+
+  const fechaObjeto =
+    typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fecha)
+      ? new Date(`${fecha}T00:00:00Z`)
+      : null
+
+  if (
+    !fechaObjeto ||
+    Number.isNaN(fechaObjeto.getTime()) ||
+    fechaObjeto.toISOString().slice(0, 10) !== fecha
+  ) {
+    return res.status(400).json({
+      mensaje: 'Ingresá una fecha válida.'
+    })
+  }
+
+  const formatoHora = /^(?:[01]\d|2[0-3]):[0-5]\d$/
+
+  if (
+    typeof hora_inicio !== 'string' ||
+    typeof hora_fin !== 'string' ||
+    !formatoHora.test(hora_inicio) ||
+    !formatoHora.test(hora_fin) ||
+    hora_fin <= hora_inicio
+  ) {
+    return res.status(400).json({
+      mensaje: 'Ingresá un intervalo horario válido.'
+    })
+  }
+
+  if (
+    typeof motivo !== 'string' ||
+    !motivo.trim() ||
+    motivo.trim().length > 150
+  ) {
+    return res.status(400).json({
+      mensaje: 'Ingresá un motivo de hasta 150 caracteres.'
+    })
+  }
+
+  const inicio = `${fecha} ${hora_inicio}:00`
+  const fin = `${fecha} ${hora_fin}:00`
+
+  // Obtener la fecha y hora actual de La Rioja
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'America/Argentina/La_Rioja',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23'
+    })
+      .formatToParts(new Date())
+      .map(parte => [parte.type, parte.value])
+  )
+
+  const ahora =
+    `${partes.year}-${partes.month}-${partes.day} ` +
+    `${partes.hour}:${partes.minute}:${partes.second}`
+
+  if (inicio <= ahora) {
+    return res.status(400).json({
+      mensaje: 'No podés bloquear un horario que ya pasó.'
+    })
+  }
+
+  const rechazar = (codigo, mensaje) => {
+    const error = new Error(mensaje)
+    error.estadoHttp = codigo
+    throw error
+  }
+
+  let conexion
+
+  try {
+    conexion = await pool.getConnection()
+
+    await conexion.query('SET TRANSACTION ISOLATION LEVEL READ COMMITTED')
+
+    await conexion.beginTransaction()
+
+    // Bloquear los mismos puestos que utiliza
+    // el endpoint de creación de reservas
+    const [puestos] = await conexion.execute(
+      `SELECT id_puesto
+         FROM puestos_lavado
+         WHERE activo = 1
+         ORDER BY id_puesto
+         FOR UPDATE`
+    )
+
+    if (puestos.length === 0) {
+      rechazar(409, 'No hay puestos activos.')
+    }
+
+    if (
+      idPuesto !== null &&
+      !puestos.some(puesto => Number(puesto.id_puesto) === idPuesto)
+    ) {
+      rechazar(404, 'El puesto no existe o está deshabilitado.')
+    }
+
+    // Comprobar reservas superpuestas
+    const [turnos] = await conexion.execute(
+      `SELECT id_turno
+         FROM turnos
+         WHERE estado <> 'cancelado'
+           AND fecha_hora_inicio < ?
+           AND fecha_hora_fin > ?
+           AND (? IS NULL OR id_puesto = ?)
+         LIMIT 1`,
+      [fin, inicio, idPuesto, idPuesto]
+    )
+
+    if (turnos.length > 0) {
+      rechazar(409, 'No se puede bloquear: existen reservas en ese horario.')
+    }
+
+    // Comprobar bloqueos anteriores
+    const [bloqueos] = await conexion.execute(
+      `SELECT id_bloqueo
+         FROM bloqueos_agenda
+         WHERE fecha_hora_inicio < ?
+           AND fecha_hora_fin > ?
+           AND (
+             ? IS NULL
+             OR id_puesto IS NULL
+             OR id_puesto = ?
+           )
+         LIMIT 1`,
+      [fin, inicio, idPuesto, idPuesto]
+    )
+
+    if (bloqueos.length > 0) {
+      rechazar(409, 'Ya existe un bloqueo que se superpone con ese horario.')
+    }
+
+    // Registrar el bloqueo
+    const [resultado] = await conexion.execute(
+      `INSERT INTO bloqueos_agenda (
+           id_puesto,
+           fecha_hora_inicio,
+           fecha_hora_fin,
+           motivo
+         )
+         VALUES (?, ?, ?, ?)`,
+      [idPuesto, inicio, fin, motivo.trim()]
+    )
+
+    await conexion.commit()
+
+    return res.status(201).json({
+      mensaje: 'Horario bloqueado correctamente.',
+      bloqueo: {
+        id_bloqueo: resultado.insertId,
+        id_puesto: idPuesto,
+        inicio,
+        fin,
+        motivo: motivo.trim()
+      }
+    })
+  } catch (error) {
+    if (conexion) {
+      try {
+        await conexion.rollback()
+      } catch (errorRollback) {
+        console.error('Error al revertir bloqueo:', errorRollback)
+      }
+    }
+
+    if (error.estadoHttp) {
+      return res.status(error.estadoHttp).json({
+        mensaje: error.message
+      })
+    }
+
+    console.error('Error al crear bloqueo:', error)
+
+    return res.status(500).json({
+      mensaje: 'No se pudo registrar el bloqueo.'
+    })
+  } finally {
+    if (conexion) {
+      conexion.release()
+    }
+  }
+})
+
+// Eliminar un bloqueo de agenda (solo para administradores)
+app.delete(
+  '/api/admin/bloqueos/:id',
+  verificarAdministrador,
+  async (req, res) => {
+    const idBloqueo = Number(req.params.id)
+
+    if (!Number.isSafeInteger(idBloqueo) || idBloqueo <= 0) {
+      return res.status(400).json({
+        mensaje: 'El identificador del bloqueo es inválido.'
+      })
+    }
+
+    try {
+      // Buscar el bloqueo
+      const [bloqueos] = await pool.execute(
+        `SELECT id_bloqueo, id_puesto, motivo
+         FROM bloqueos_agenda
+         WHERE id_bloqueo = ?
+         LIMIT 1`,
+        [idBloqueo]
+      )
+
+      if (bloqueos.length === 0) {
+        return res.status(404).json({
+          mensaje: 'No se encontró el bloqueo.'
+        })
+      }
+
+      // Eliminar el bloqueo de MySQL
+      const [resultado] = await pool.execute(
+        `DELETE FROM bloqueos_agenda
+         WHERE id_bloqueo = ?`,
+        [idBloqueo]
+      )
+
+      if (resultado.affectedRows === 0) {
+        return res.status(404).json({
+          mensaje: 'El bloqueo ya no existe.'
+        })
+      }
+
+      return res.json({
+        mensaje: 'Bloqueo eliminado correctamente.',
+        id_bloqueo: idBloqueo
+      })
+    } catch (error) {
+      console.error('Error al eliminar bloqueo:', error)
+
+      return res.status(500).json({
+        mensaje: 'No se pudo eliminar el bloqueo.'
+      })
+    }
+  }
+)
+
+// Consultar servicios disponibles (solo para administradores)
+app.get('/api/admin/servicios', verificarAdministrador, async (req, res) => {
+  try {
+    const [servicios] = await pool.execute(
+      `SELECT
+           id_servicio,
+           nombre,
+           descripcion,
+           precio,
+           duracion_minutos,
+           activo
+         FROM servicios
+         ORDER BY id_servicio`
+    )
+
+    return res.json({ servicios })
+  } catch (error) {
+    console.error('Error al consultar servicios:', error)
+
+    return res.status(500).json({
+      mensaje: 'No se pudieron obtener los servicios.'
+    })
+  }
+})
+
+// Actualizar un servicio (solo para administradores)
+app.patch(
+  '/api/admin/servicios/:id',
+  verificarAdministrador,
+  async (req, res) => {
+    const idServicio = Number(req.params.id)
+
+    const { precio, duracion_minutos, activo } = req.body || {}
+
+    // Validar identificador
+    if (!Number.isSafeInteger(idServicio) || idServicio <= 0) {
+      return res.status(400).json({
+        mensaje: 'El identificador del servicio es inválido.'
+      })
+    }
+
+    // Validar precio (hasta dos decimales)
+    const precioTexto = String(precio ?? '').trim()
+
+    const precioValido =
+      /^(?:0|[1-9]\d{0,7})(?:\.\d{1,2})?$/.test(precioTexto) &&
+      Number(precioTexto) > 0
+
+    if (!precioValido) {
+      return res.status(400).json({
+        mensaje: 'Ingresá un precio válido mayor que cero.'
+      })
+    }
+
+    // Validar duración
+    const duracion = Number(duracion_minutos)
+
+    if (
+      !Number.isSafeInteger(duracion) ||
+      duracion < 30 ||
+      duracion > 240 ||
+      duracion % 30 !== 0
+    ) {
+      return res.status(400).json({
+        mensaje:
+          'La duración debe ser de 30 a 240 minutos, en intervalos de 30.'
+      })
+    }
+
+    // Validar estado activo/inactivo
+    let activoNormalizado
+
+    if (activo === true || activo === 1 || activo === '1') {
+      activoNormalizado = 1
+    } else if (activo === false || activo === 0 || activo === '0') {
+      activoNormalizado = 0
+    } else {
+      return res.status(400).json({
+        mensaje: 'El estado del servicio es inválido.'
+      })
+    }
+
+    try {
+      // Verificar que el servicio existe
+      const [existentes] = await pool.execute(
+        `SELECT id_servicio
+         FROM servicios
+         WHERE id_servicio = ?
+         LIMIT 1`,
+        [idServicio]
+      )
+
+      if (existentes.length === 0) {
+        return res.status(404).json({
+          mensaje: 'No se encontró el servicio.'
+        })
+      }
+
+      // Actualizar el servicio
+      await pool.execute(
+        `UPDATE servicios
+         SET precio = ?,
+             duracion_minutos = ?,
+             activo = ?
+         WHERE id_servicio = ?`,
+        [
+          Number(precioTexto).toFixed(2),
+          duracion,
+          activoNormalizado,
+          idServicio
+        ]
+      )
+
+      // Consultar los datos actualizados
+      const [servicios] = await pool.execute(
+        `SELECT
+           id_servicio,
+           nombre,
+           descripcion,
+           precio,
+           duracion_minutos,
+           activo
+         FROM servicios
+         WHERE id_servicio = ?`,
+        [idServicio]
+      )
+
+      return res.json({
+        mensaje: 'Servicio actualizado correctamente.',
+        servicio: servicios[0]
+      })
+    } catch (error) {
+      console.error('Error al actualizar servicio:', error)
+
+      return res.status(500).json({
+        mensaje: 'No se pudo actualizar el servicio.'
+      })
+    }
+  }
+)
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor funcionando en http://localhost:${PORT}`)
