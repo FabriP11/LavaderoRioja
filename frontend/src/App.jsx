@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router";
+import { Routes, Route, useLocation } from "react-router";
+import { useEffect } from "react";
 
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -11,8 +12,20 @@ import MisVehiculos from "./pages/MisVehiculos";
 import ReservarTurno from "./pages/ReservarTurno";
 import MisTurnos from "./pages/MisTurnos";
 import PanelAdmin from "./pages/PanelAdmin";
+import AgendaAdmin from "./pages/AgendaAdmin";
+import ServiciosAdmin from "./pages/ServiciosAdmin";
 
 function App() {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "instant",
+    });
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
       <Navbar />
@@ -27,6 +40,8 @@ function App() {
           <Route path="/reservar-turno" element={<ReservarTurno />} />
           <Route path="/mis-turnos" element={<MisTurnos />} />
           <Route path="/admin" element={<PanelAdmin />} />
+          <Route path="/admin/agenda" element={<AgendaAdmin />} />
+          <Route path="/admin/servicios" element={<ServiciosAdmin />} />
         </Routes>
       </main>
 
