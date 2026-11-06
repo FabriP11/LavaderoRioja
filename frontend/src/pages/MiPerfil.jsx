@@ -1,13 +1,15 @@
-import { Navigate } from "react-router";
+import { Link, Navigate } from "react-router";
+
 import {
   UserRound,
   ShieldCheck,
   AtSign,
   IdCard,
-  CarFront,
-  CalendarDays,
   CheckCircle2,
   LoaderCircle,
+  CarFront,
+  CalendarDays,
+  ArrowRight,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -136,18 +138,57 @@ function MiPerfil() {
             Mis servicios
           </h3>
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <TarjetaFuncion
-              icono={CarFront}
-              titulo="Mis vehículos"
-              descripcion="Registrá y administrá los vehículos asociados a tu cuenta."
-            />
+          {/* ACCESOS RÁPIDOS */}
+          <div className="mt-8 grid gap-5 sm:grid-cols-2">
+            {/* MIS VEHÍCULOS */}
+            <Link
+              to="/mis-vehiculos"
+              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-sky-400 hover:shadow-lg"
+            >
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                <CarFront size={24} />
+              </div>
 
-            <TarjetaFuncion
-              icono={CalendarDays}
-              titulo="Mis turnos"
-              descripcion="Consultá tus reservas y el historial de lavados realizados."
-            />
+              <h3 className="text-lg font-bold text-slate-950">
+                Mis vehículos
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Consultá, registrá, editá y administrá tus vehículos.
+              </p>
+
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-sky-600">
+                Ver mis vehículos
+                <ArrowRight
+                  size={17}
+                  className="transition-transform group-hover:translate-x-1"
+                />
+              </span>
+            </Link>
+
+            {/* MIS TURNOS */}
+            <Link
+              to="/mis-turnos"
+              className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-sky-400 hover:shadow-lg"
+            >
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+                <CalendarDays size={24} />
+              </div>
+
+              <h3 className="text-lg font-bold text-slate-950">Mis turnos</h3>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Consultá tus reservas, revisá el historial y cancelá turnos.
+              </p>
+
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-sky-600">
+                Ver mis turnos
+                <ArrowRight
+                  size={17}
+                  className="transition-transform group-hover:translate-x-1"
+                />
+              </span>
+            </Link>
           </div>
         </div>
       </div>
