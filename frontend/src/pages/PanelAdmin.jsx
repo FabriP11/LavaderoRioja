@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router";
+import { Link, Navigate } from "react-router";
 
 import {
   LayoutDashboard,
@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Droplets,
   ArrowRight,
+  Settings2,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -333,6 +334,52 @@ function PanelAdmin() {
             {errorEstado}
           </div>
         )}
+
+        {/* ACCESO A LA AGENDA */}
+        <Link
+          to="/admin/agenda"
+          className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-sky-50 p-6 transition hover:bg-sky-100"
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+              <CalendarDays size={25} />
+            </div>
+
+            <div>
+              <h2 className="font-bold text-slate-950">Agenda de puestos</h2>
+
+              <p className="mt-1 text-sm text-slate-600">
+                Consultar las reservas del Puesto 1 y Puesto 2.
+              </p>
+            </div>
+          </div>
+
+          <span className="text-sm font-bold text-sky-700">Ver agenda</span>
+        </Link>
+
+        {/* ACCESO A ADMINISTRAR SERVICIOS */}
+        <Link
+          to="/admin/servicios"
+          className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-sky-50 p-6 transition hover:bg-sky-100"
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+              <Settings2 size={25} />
+            </div>
+
+            <div>
+              <h2 className="font-bold text-slate-950">
+                Administrar servicios
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-600">
+                Modificar precios, duraciones y disponibilidad.
+              </p>
+            </div>
+          </div>
+
+          <span className="text-sm font-bold text-sky-700">Ver servicios</span>
+        </Link>
 
         {/* ESTADÍSTICAS */}
         <div className="mb-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
