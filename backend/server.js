@@ -1,4 +1,5 @@
 require('dotenv').config()
+const serviciosRoutes = require('./routes/servicios')
 
 const express = require('express')
 const cors = require('cors')
@@ -25,6 +26,9 @@ app.use(
 app.use(express.json())
 app.use(cookieParser())
 
+// Rutas de servicios
+app.use('/api/servicios', serviciosRoutes)
+
 // Comprobar funcionamiento del backend
 app.get('/api/estado', (req, res) => {
   res.json({
@@ -49,31 +53,6 @@ app.get('/api/estado-db', async (req, res) => {
 
     res.status(500).json({
       mensaje: 'No se pudo conectar a MySQL'
-    })
-  }
-})
-
-// Obtener servicios activos
-app.get('/api/servicios', async (req, res) => {
-  try {
-    const [servicios] = await pool.query(`
-      SELECT
-        id_servicio,
-        nombre,
-        descripcion,
-        precio,
-        duracion_minutos
-      FROM servicios
-      WHERE activo = TRUE
-      ORDER BY duracion_minutos ASC
-    `)
-
-    res.json(servicios)
-  } catch (error) {
-    console.error('Error al obtener servicios:', error)
-
-    res.status(500).json({
-      mensaje: 'No se pudieron cargar los servicios'
     })
   }
 })
