@@ -16,11 +16,12 @@ import {
   Droplets,
   ArrowRight,
   Settings2,
+  CreditCard,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 const estados = {
   reservado: {
@@ -379,6 +380,28 @@ function PanelAdmin() {
           </div>
 
           <span className="text-sm font-bold text-sky-700">Ver servicios</span>
+        </Link>
+
+        {/* ACCESO A GESTIÓN DE PAGOS */}
+        <Link
+          to="/admin/pagos"
+          className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-sky-50 p-6 transition hover:bg-sky-100"
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+              <CreditCard size={25} />
+            </div>
+
+            <div>
+              <h2 className="font-bold text-slate-950">Gestión de pagos</h2>
+
+              <p className="mt-1 text-sm text-slate-600">
+                Registrar cobros y consultar los pagos realizados.
+              </p>
+            </div>
+          </div>
+
+          <span className="text-sm font-bold text-sky-700">Ver pagos</span>
         </Link>
 
         {/* ESTADÍSTICAS */}

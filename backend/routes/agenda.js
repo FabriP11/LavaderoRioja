@@ -1,6 +1,7 @@
 const express = require('express')
 const pool = require('../db')
 const { verificarAdministrador } = require('../middlewares/autenticacion')
+const { obtenerPartesFechaHora } = require('../utils/fechaHora')
 
 const router = express.Router()
 
@@ -175,20 +176,7 @@ router.post('/bloqueos', verificarAdministrador, async (req, res) => {
   const fin = `${fecha} ${hora_fin}:00`
 
   // Obtener la fecha y hora actual de La Rioja
-  const partes = Object.fromEntries(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'America/Argentina/La_Rioja',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hourCycle: 'h23'
-    })
-      .formatToParts(new Date())
-      .map(parte => [parte.type, parte.value])
-  )
+  const partes = obtenerPartesFechaHora()
 
   const ahora =
     `${partes.year}-${partes.month}-${partes.day} ` +

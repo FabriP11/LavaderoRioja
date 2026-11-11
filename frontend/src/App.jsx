@@ -14,6 +14,7 @@ import MisTurnos from "./pages/MisTurnos";
 import PanelAdmin from "./pages/PanelAdmin";
 import AgendaAdmin from "./pages/AgendaAdmin";
 import ServiciosAdmin from "./pages/ServiciosAdmin";
+import PagosAdmin from "./pages/PagosAdmin";
 
 function App() {
   const location = useLocation();
@@ -42,6 +43,7 @@ function App() {
           <Route path="/admin" element={<PanelAdmin />} />
           <Route path="/admin/agenda" element={<AgendaAdmin />} />
           <Route path="/admin/servicios" element={<ServiciosAdmin />} />
+          <Route path="/admin/pagos" element={<PagosAdmin />} />
         </Routes>
       </main>
 

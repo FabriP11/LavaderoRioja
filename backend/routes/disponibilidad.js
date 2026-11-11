@@ -1,5 +1,10 @@
 const express = require('express')
 const pool = require('../db')
+const {
+  horaAMinutos,
+  minutosAHora,
+  obtenerPartesFechaHora
+} = require('../utils/fechaHora')
 
 const router = express.Router()
 
@@ -31,19 +36,7 @@ router.get('/', async (req, res) => {
   }
 
   // Obtener fecha y hora actuales de Argentina
-  const partes = Object.fromEntries(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'America/Argentina/La_Rioja',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23'
-    })
-      .formatToParts(new Date())
-      .map(parte => [parte.type, parte.value])
-  )
+  const partes = obtenerPartesFechaHora()
 
   const hoy = `${partes.year}-${partes.month}-${partes.day}`
   const ahora = `${hoy} ${partes.hour}:${partes.minute}:00`
@@ -52,20 +45,6 @@ router.get('/', async (req, res) => {
     return res.status(400).json({
       mensaje: 'No podés consultar fechas anteriores a hoy.'
     })
-  }
-
-  // Convertir horarios a minutos
-  const horaAMinutos = hora => {
-    const [horas, minutos] = hora.split(':').map(Number)
-    return horas * 60 + minutos
-  }
-
-  // Convertir minutos a formato HH:MM
-  const minutosAHora = minutos => {
-    const horas = Math.floor(minutos / 60)
-    const resto = minutos % 60
-
-    return `${String(horas).padStart(2, '0')}:${String(resto).padStart(2, '0')}`
   }
 
   try {
