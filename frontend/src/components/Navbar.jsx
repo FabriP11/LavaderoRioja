@@ -43,7 +43,7 @@ function Navbar() {
   };
 
   return (
-    <header className="relative z-20 bg-[#081727] text-white">
+    <header className="sticky top-0 z-50 w-full bg-[#081727] text-white">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-8">
         {/* LOGO */}
         <Link to="/" className="flex items-center gap-3">

@@ -15,6 +15,9 @@ const adminTurnosRoutes = require('./routes/adminTurnos')
 const agendaRoutes = require('./routes/agenda')
 const adminServiciosRoutes = require('./routes/adminServicios')
 const pagosRoutes = require('./routes/pagos')
+const adminHorariosRoutes = require('./routes/AdminHorarios')
+const adminReservasRoutes = require('./routes/adminReservas')
+const adminClientesRoutes = require('./routes/adminClientes')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -72,6 +75,9 @@ app.use('/api/admin/turnos', adminTurnosRoutes)
 app.use('/api/admin', agendaRoutes)
 app.use('/api/admin/servicios', adminServiciosRoutes)
 app.use('/api/admin/pagos', pagosRoutes)
+app.use('/api/admin/horarios', adminHorariosRoutes)
+app.use('/api/admin/reservas', adminReservasRoutes)
+app.use('/api/admin/clientes', adminClientesRoutes)
 
 // Iniciar servidor
 app.listen(PORT, () => {

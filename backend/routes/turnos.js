@@ -10,8 +10,9 @@ const {
 const router = express.Router()
 
 // Registrar un turno para el cliente
-router.post('/turnos', verificarCliente, async (req, res) => {
+async function registrarTurno (req, res) {
   const { id_vehiculo, id_servicio, fecha, hora_inicio } = req.body || {}
+  const origen = req.origenTurno === 'presencial' ? 'presencial' : 'web'
 
   const idVehiculo = Number(id_vehiculo)
   const idServicio = Number(id_servicio)
@@ -224,7 +225,7 @@ router.post('/turnos', verificarCliente, async (req, res) => {
          origen,
          estado
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'web', 'reservado')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'reservado')`,
       [
         req.idCliente,
         idVehiculo,
@@ -232,7 +233,8 @@ router.post('/turnos', verificarCliente, async (req, res) => {
         puestoLibre.id_puesto,
         inicio,
         fin,
-        servicio.precio
+        servicio.precio,
+        origen
       ]
     )
 
@@ -279,7 +281,10 @@ router.post('/turnos', verificarCliente, async (req, res) => {
       conexion.release()
     }
   }
-})
+}
+
+// Ruta para reservas online
+router.post('/turnos', verificarCliente, registrarTurno)
 
 // Consultar turnos del cliente
 router.get('/mis-turnos', verificarCliente, async (req, res) => {
@@ -399,3 +404,4 @@ router.patch('/mis-turnos/:id/cancelar', verificarCliente, async (req, res) => {
 })
 
 module.exports = router
+module.exports.registrarTurno = registrarTurno

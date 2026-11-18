@@ -17,6 +17,8 @@ import {
   ArrowRight,
   Settings2,
   CreditCard,
+  CalendarPlus,
+  Users,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -75,6 +77,45 @@ const accionesPorEstado = {
     texto: "Marcar entregado",
   },
 };
+
+const accesosAdmin = [
+  {
+    titulo: "Horarios de atención",
+    descripcion: "Administrar días y horarios de apertura.",
+    ruta: "/admin/horarios",
+    icono: Clock3,
+  },
+  {
+    titulo: "Gestión de clientes",
+    descripcion: "Consultar clientes, vehículos e historial.",
+    ruta: "/admin/clientes",
+    icono: Users,
+  },
+  {
+    titulo: "Reservas presenciales",
+    descripcion: "Registrar turnos en el local o por teléfono.",
+    ruta: "/admin/reservas",
+    icono: CalendarPlus,
+  },
+  {
+    titulo: "Agenda de puestos",
+    descripcion: "Consultar las reservas de ambos puestos.",
+    ruta: "/admin/agenda",
+    icono: CalendarDays,
+  },
+  {
+    titulo: "Administrar servicios",
+    descripcion: "Modificar precios, duración y disponibilidad.",
+    ruta: "/admin/servicios",
+    icono: Settings2,
+  },
+  {
+    titulo: "Gestión de pagos",
+    descripcion: "Registrar cobros y consultar pagos.",
+    ruta: "/admin/pagos",
+    icono: CreditCard,
+  },
+];
 
 function PanelAdmin() {
   const { usuario, comprobandoSesion } = useAuth();
@@ -336,73 +377,44 @@ function PanelAdmin() {
           </div>
         )}
 
-        {/* ACCESO A LA AGENDA */}
-        <Link
-          to="/admin/agenda"
-          className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-sky-50 p-6 transition hover:bg-sky-100"
-        >
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
-              <CalendarDays size={25} />
-            </div>
+        {/* ACCESOS ADMINISTRATIVOS */}
+        <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {accesosAdmin.map((acceso) => {
+            const Icono = acceso.icono;
 
-            <div>
-              <h2 className="font-bold text-slate-950">Agenda de puestos</h2>
+            return (
+              <Link
+                key={acceso.ruta}
+                to={acceso.ruta}
+                className="group flex min-h-[155px] flex-col justify-between rounded-2xl border border-sky-200 bg-sky-50 p-5 transition hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-md"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+                    <Icono size={23} />
+                  </div>
 
-              <p className="mt-1 text-sm text-slate-600">
-                Consultar las reservas del Puesto 1 y Puesto 2.
-              </p>
-            </div>
-          </div>
+                  <div className="min-w-0">
+                    <h2 className="text-base font-bold text-slate-950">
+                      {acceso.titulo}
+                    </h2>
 
-          <span className="text-sm font-bold text-sky-700">Ver agenda</span>
-        </Link>
+                    <p className="mt-1 text-sm leading-5 text-slate-600">
+                      {acceso.descripcion}
+                    </p>
+                  </div>
+                </div>
 
-        {/* ACCESO A ADMINISTRAR SERVICIOS */}
-        <Link
-          to="/admin/servicios"
-          className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-sky-50 p-6 transition hover:bg-sky-100"
-        >
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
-              <Settings2 size={25} />
-            </div>
-
-            <div>
-              <h2 className="font-bold text-slate-950">
-                Administrar servicios
-              </h2>
-
-              <p className="mt-1 text-sm text-slate-600">
-                Modificar precios, duraciones y disponibilidad.
-              </p>
-            </div>
-          </div>
-
-          <span className="text-sm font-bold text-sky-700">Ver servicios</span>
-        </Link>
-
-        {/* ACCESO A GESTIÓN DE PAGOS */}
-        <Link
-          to="/admin/pagos"
-          className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-sky-200 bg-sky-50 p-6 transition hover:bg-sky-100"
-        >
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
-              <CreditCard size={25} />
-            </div>
-
-            <div>
-              <h2 className="font-bold text-slate-950">Gestión de pagos</h2>
-
-              <p className="mt-1 text-sm text-slate-600">
-                Registrar cobros y consultar los pagos realizados.
-              </p>
-            </div>
-          </div>
-
-          <span className="text-sm font-bold text-sky-700">Ver pagos</span>
-        </Link>
+                <div className="mt-4 flex items-center justify-end gap-2 text-sm font-bold text-sky-700">
+                  Acceder
+                  <ArrowRight
+                    size={17}
+                    className="transition group-hover:translate-x-1"
+                  />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
 
         {/* ESTADÍSTICAS */}
         <div className="mb-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
